@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>💗 Миний Хайр</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+  </div>
+
+  <main class="wrap">
+    <header class="hero card">
+      <div class="badge">PRIVATE • ONLY FOR US</div>
+
+      <div class="hero-grid">
+        <div class="photo">
+          <img src="./odmaa.jpg" alt="Her photo" />
+        </div>
+
+        <div class="hero-text">
+          <h1><span class="accent">Хайрт Одмаа</span></h1>
+          
+          <p class="subtitle">Энэ бол бидний дурсамжуудын жижигхэн ертөнц. 💗</p>
+
+          <div class="cta-row">
+            <a class="btn primary" href="#memories">Дурсамжууд</a>
+            <button class="btn ghost" id="copyLinkBtn" type="button">Линк хуулах</button>
+          </div>
+
+          <div class="tiny">
+            <span id="todayLine"></span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section id="memories" class="card section">
+      <div class="section-head row-between">
+        <div>
+          <h2>✨ Дурсамжууд</h2>
+          <p id="authHint">Дурсамж нэмэхийн тулд нэвтэрнэ.</p>
+        </div>
+
+        <div class="cta-row">
+          <button class="btn ghost" id="loginBtn" type="button">Google-р нэвтрэх</button>
+          <button class="btn ghost" id="logoutBtn" type="button" style="display:none;">Гарах</button>
+          <button class="btn primary" id="openAddBtn" type="button" disabled>➕ Нэмэх</button>
+        </div>
+      </div>
+
+      <div class="memory-list" id="memoryList">
+        <div class="tiny" id="loadingLine">Ачаалж байна…</div>
+      </div>
+    </section>
+
+    <section class="card section">
+      <div class="section-head">
+        <h2>💌 Захиа</h2>
+        <p>Хүсвэл энд нэг урт, зөөлөн текст оруулж болно.</p>
+      </div>
+      <div class="letter">
+        Чамтай өнгөрүүлсэн мөчүүд намайг үргэлж дулаацуулдаг…
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Made with 💗</span>
+        <span class="dot">•</span>
+        <span id="year"></span>
+      </div>
+    </footer>
+  </main>
+
+  <!-- ADD MODAL -->
+  <div class="modal" id="addModal" aria-hidden="true">
+    <div class="modal-backdrop" id="closeModal"></div>
+
+    <div class="modal-card card">
+      <div class="modal-head">
+        <div>
+          <div class="badge">ADD MEMORY</div>
+          <h3 style="margin:10px 0 0;">Дурсамж нэмэх</h3>
+        </div>
+        <button class="btn ghost" id="xCloseBtn" type="button">✕</button>
+      </div>
+
+      <form id="memoryForm" class="modal-form">
+        <input class="in" id="title" placeholder="Гарчиг" required />
+        <textarea class="in" id="text" placeholder="Дурсамж..." rows="4" required></textarea>
+
+        <div class="grid2">
+          <input class="in" id="date" type="date" />
+          <input class="in" id="location" placeholder="📍 Байршил (optional)" />
+        </div>
+
+        <div class="grid2">
+          <select class="in" id="mood">
+            <option value="💗">💗 Romantic</option>
+            <option value="😍">😍 Happy</option>
+            <option value="🥰">🥰 Love</option>
+            <option value="😢">😢 Sad</option>
+            <option value="✨">✨ Special</option>
+          </select>
+          <input class="in" id="photo" type="file" accept="image/*" />
+        </div>
+
+        <input class="in" id="music" placeholder="🎵 Spotify link (optional)" />
+        <input class="in" id="video" placeholder="🎥 YouTube link (optional)" />
+
+        <button class="btn primary" type="submit">Нэмэх</button>
+        <div class="tiny" id="status"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div class="modal" id="detailModal" aria-hidden="true">
+    <div class="modal-backdrop" id="closeDetail"></div>
+
+    <div class="modal-card card">
+      <div class="modal-head">
+        <div>
+          <div class="badge">MEMORY</div>
+          <h3 style="margin:10px 0 0;" id="dTitle">Дурсамж</h3>
+        </div>
+
+        <div class="cta-row">
+          <button class="btn ghost" id="deleteInDetailBtn" type="button">🗑 Устгах</button>
+          <button class="btn ghost" id="xDetailBtn" type="button">✕</button>
+        </div>
+      </div>
+
+      <div class="detail-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./firebase.js"></script>
+</body>
+</html>
