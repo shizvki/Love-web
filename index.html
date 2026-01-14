@@ -2,19 +2,53 @@
 <html lang="mn">
 <head>
   <meta charset="utf-8" />
+  <meta name="Keywords" content="хайр, дурсамж, миний хайр">
+  <meta name="Description" content="Энэ бол бидний хайрын дурсамжуудын жижигхэн ертөнц.">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>💗 Миний Хайр</title>
+
+  <link rel="stylesheet" href="./intro.css" />
   <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    /* Canvas үргэлж дэлгэцийг дүүргэнэ */
+    #heart{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background-color: rgba(0, 0, 0, .2);
+    }
+  </style>
 </head>
 
-<body>
-  <div class="bg-blobs" aria-hidden="true">
-    <div class="blob b1"></div>
-    <div class="blob b2"></div>
-    <div class="blob b3"></div>
-  </div>
+<body class="no-scroll">
 
-  <main class="wrap">
+  <!-- ✅ INTRO OVERLAY (FULLSCREEN SPLASH) -->
+  <section class="intro-overlay" id="introOverlay" aria-hidden="false">
+    <canvas id="heart"></canvas>
+
+    <div class="intro-content">
+      <p class="pill">❤️ Canvas Intro</p>
+      <h1>Сайн байна уу, би Таны Нэр</h1>
+      <p>Энд 1–2 өгүүлбэрээр өөрийгөө танилцуул. Доорхи canvas нь intro animation.</p>
+
+      <div class="btns">
+        <button class="btn primary" id="skipIntro" type="button">Enter</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ✅ MAIN WEBSITE -->
+  <main class="wrap site site--hidden" id="site">
+
+    <div class="bg-blobs" aria-hidden="true">
+      <div class="blob b1"></div>
+      <div class="blob b2"></div>
+      <div class="blob b3"></div>
+    </div>
+
     <header class="hero card">
       <div class="badge">PRIVATE • ONLY FOR US</div>
 
@@ -25,7 +59,7 @@
 
         <div class="hero-text">
           <h1><span class="accent">Хайрт Одмаа</span></h1>
-          
+
           <p class="subtitle">Энэ бол бидний дурсамжуудын жижигхэн ертөнц. 💗</p>
 
           <div class="cta-row">
@@ -108,11 +142,10 @@
             <option value="😢">😢 Sad</option>
             <option value="✨">✨ Special</option>
           </select>
-          <input class="in" id="photo" type="file" accept="image/*" />
-        </div>
 
-        <input class="in" id="music" placeholder="🎵 Spotify link (optional)" />
-        <input class="in" id="video" placeholder="🎥 YouTube link (optional)" />
+          <input class="in" id="media" type="file" multiple accept="image/*,video/*,audio/*" />
+          <div class="tiny">Зураг/видео/дуу олон файлыг зэрэг сонгож болно.</div>
+        </div>
 
         <button class="btn primary" type="submit">Нэмэх</button>
         <div class="tiny" id="status"></div>
@@ -120,27 +153,39 @@
     </div>
   </div>
 
-  <!-- DETAIL MODAL -->
-  <div class="modal" id="detailModal" aria-hidden="true">
+  <!-- ✅ DETAIL MODAL (HEADER НЭГ ЭГНЭЭ) -->
+  <div id="detailModal" class="modal" aria-hidden="true">
     <div class="modal-backdrop" id="closeDetail"></div>
 
     <div class="modal-card card">
-      <div class="modal-head">
-        <div>
-          <div class="badge">MEMORY</div>
-          <h3 style="margin:10px 0 0;" id="dTitle">Дурсамж</h3>
+      <div class="modal-head modal-head--tight">
+
+        <div class="mh-left">
+          <h3 id="dTitle">Дурсамж</h3>
         </div>
 
-        <div class="cta-row">
-          <button class="btn ghost" id="deleteInDetailBtn" type="button">🗑 Устгах</button>
-          <button class="btn ghost" id="xDetailBtn" type="button">✕</button>
+        <div class="mh-right">
+          <button id="deleteInDetailBtn" class="btn ghost" type="button">🗑 Устгах</button>
+
+          <!-- addMoreWrap: login үед харуулах бол JS-ээр display:flex болгож болно -->
+          <div id="addMoreWrap" class="addmore" style="display:none;">
+            <label class="btn primary" for="addMoreMedia">Энд нэмэх</label>
+            <input class="in" id="addMoreMedia" type="file" multiple accept="image/*,video/*,audio/*" />
+            <button class="btn primary" id="addMoreBtn" type="button">Upload</button>
+          </div>
+
+          <button id="xDetailBtn" class="btn icon" type="button" aria-label="Close">✕</button>
         </div>
+
       </div>
 
-      <div class="detail-body" id="detailBody"></div>
+      <div class="tiny" id="addMoreStatus"></div>
+      <div id="detailBody" class="detail-body"></div>
     </div>
   </div>
 
   <script type="module" src="./firebase.js"></script>
+  <script type="module" src="./intro.js"></script>
+  <script src="intro-transition.js"></script>
 </body>
 </html>

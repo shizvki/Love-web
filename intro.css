@@ -1,0 +1,97 @@
+/* =========================
+   INTRO OVERLAY + TRANSITION
+   ========================= */
+.no-scroll{ overflow: hidden; }
+
+.intro-overlay{
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  z-index: 9999;
+
+  opacity: 1;
+  transition: opacity 900ms ease;
+}
+
+.intro-overlay.hide{
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-content{
+  position: relative;
+  z-index: 1;
+  width: min(900px, 92vw);
+  margin: 0 auto;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: rgba(255,255,255,.92);
+}
+
+/* main page transition */
+.site{
+  min-height: 100vh;
+  transform-origin: 50% 0%;
+  transition: transform 1000ms cubic-bezier(.2,.9,.2,1), opacity 1000ms ease;
+}
+.site--hidden{
+  opacity: 0;
+  transform: perspective(1200px) rotateX(-14deg) translateY(24px) scale(.98);
+}
+.site--show{
+  opacity: 1;
+  transform: perspective(1200px) rotateX(0deg) translateY(0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce){
+  .intro-overlay, .site{ transition:none; }
+  .site--hidden{ opacity: 1; transform:none; }
+}
+
+/* =========================
+   DETAIL MODAL HEADER (ONE ROW)
+   ========================= */
+.modal-head--tight{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mh-left{ min-width: 0; }
+.mh-left h3{ margin: 0; white-space: nowrap; }
+
+.mh-right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn.icon{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.addmore{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.addmore .in{
+  width: 220px;
+}
+
+@media (max-width: 520px){
+  .modal-head--tight{ flex-wrap: wrap; }
+  .mh-right{ width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+  .addmore .in{ width: 100%; }
+}

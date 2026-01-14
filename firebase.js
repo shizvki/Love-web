@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
   getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp,
-  doc, deleteDoc
+  doc, deleteDoc, updateDoc, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
@@ -48,9 +48,12 @@ const dTitle = document.getElementById("dTitle");
 const detailBody = document.getElementById("detailBody");
 const deleteInDetailBtn = document.getElementById("deleteInDetailBtn");
 
-let currentDetailId = null;
+const addMoreWrap = document.getElementById("addMoreWrap");
+const addMoreInput = document.getElementById("addMoreMedia");
+const addMoreBtn = document.getElementById("addMoreBtn");
+const addMoreStatus = document.getElementById("addMoreStatus");
 
-/** State */
+let currentDetailId = null;
 let memoryCache = [];
 
 /** ---- Add Modal ---- */
@@ -62,6 +65,7 @@ function hideAddModal() {
   addModal?.classList.remove("show");
   addModal?.setAttribute("aria-hidden", "true");
 }
+
 closeModal?.addEventListener("click", hideAddModal);
 xCloseBtn?.addEventListener("click", hideAddModal);
 
@@ -86,48 +90,15 @@ function hideDetail() {
   detailModal.classList.remove("show");
   detailModal.setAttribute("aria-hidden", "true");
   currentDetailId = null;
+  if (detailBody) detailBody.innerHTML = "";
+  if (addMoreStatus) addMoreStatus.textContent = "";
+  if (addMoreInput) addMoreInput.value = "";
 }
 
 closeDetail?.addEventListener("click", hideDetail);
 xDetailBtn?.addEventListener("click", hideDetail);
-
-// ✅ ESC дархад хаах
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") hideDetail();
-});
-
-
-function openDetail(m) {
-  if (!detailModal) return;
-
-  currentDetailId = m.id;
-
-  if (dTitle) dTitle.textContent = m.title || "Дурсамж";
-
-  const parts = [];
-  parts.push(`<div class="m-date">${escapeHtml((m.mood || "💗") + " " + (m.eventDate || ""))}</div>`);
-  if (m.location) parts.push(`<div class="tiny">📍 ${escapeHtml(m.location)}</div>`);
-  if (m.imageUrl) parts.push(`<img class="detail-img" src="${m.imageUrl}" alt="">`);
-  if (m.musicLink) parts.push(renderMusic(m.musicLink));
-  if (m.videoLink) parts.push(renderVideo(m.videoLink));
-  if (m.text) parts.push(`<div class="m-text" style="-webkit-line-clamp:unset">${escapeHtml(m.text)}</div>`);
-
-  if (detailBody) detailBody.innerHTML = parts.join("");
-  showDetail();
-}
-
-/** Delete only inside detail modal */
-deleteInDetailBtn?.addEventListener("click", async () => {
-  if (!currentDetailId) return;
-
-  if (!auth.currentUser) return alert("Устгахын тулд нэвтэрнэ үү.");
-
-  const ok = confirm("Энэ дурсамжийг устгах уу?");
-  if (!ok) return;
-
-  await deleteDoc(doc(db, "memories", currentDetailId));
-  alert("Устгалаа ✅");
-  hideDetail();
 });
 
 /** ---- Auth ---- */
@@ -153,6 +124,23 @@ onAuthStateChanged(auth, (user) => {
     if (authHint) authHint.textContent = "Дурсамж нэмэхийн тулд нэвтэрнэ.";
     hideAddModal();
   }
+
+  // ✅ detail доторх товчууд
+  if (deleteInDetailBtn) deleteInDetailBtn.style.display = user ? "inline-flex" : "none";
+  if (addMoreWrap) addMoreWrap.style.display = user ? "block" : "none";
+});
+
+/** ---- Delete inside detail ---- */
+deleteInDetailBtn?.addEventListener("click", async () => {
+  if (!currentDetailId) return;
+  if (!auth.currentUser) return alert("Устгахын тулд нэвтэрнэ үү.");
+
+  const ok = confirm("Энэ дурсамжийг устгах уу?");
+  if (!ok) return;
+
+  await deleteDoc(doc(db, "memories", currentDetailId));
+  alert("Устгалаа ✅");
+  hideDetail();
 });
 
 /** ---- Realtime list ---- */
@@ -160,7 +148,6 @@ const q = query(collection(db, "memories"), orderBy("eventDate", "desc"));
 onSnapshot(q, (snap) => {
   const items = [];
   snap.forEach(d => items.push({ id: d.id, ...d.data() }));
-
   memoryCache = items;
 
   if (loadingLine) loadingLine.remove();
@@ -183,11 +170,129 @@ memoryList?.addEventListener("click", (e) => {
   if (mem) openDetail(mem);
 });
 
+/** ---- Upload helper (media[]) ---- */
+async function uploadFilesToMedia(files) {
+  const media = [];
+  for (const f of files) {
+    const t = (f.type || "").toLowerCase();
+    const name = (f.name || "").toLowerCase();
+
+    const isVideo = t.startsWith("video/") || /\.(mp4|mov|webm|mkv)$/i.test(name);
+    const isAudio = t.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg)$/i.test(name);
+    const type = isVideo ? "video" : (isAudio ? "audio" : "image");
+
+    const fileRef = ref(storage, `memories/${Date.now()}-${safeName(f.name)}`);
+    await uploadBytes(fileRef, f);
+    const url = await getDownloadURL(fileRef);
+
+    media.push({ type, url });
+  }
+  return media;
+}
+
+/** ---- Detail open ---- */
+function openDetail(m) {
+  if (!detailModal) return;
+  currentDetailId = m.id;
+
+  if (dTitle) dTitle.textContent = m.title || "Дурсамж";
+
+  const parts = [];
+  parts.push(`<div class="m-date">${escapeHtml((m.mood || "💗") + " " + (m.eventDate || ""))}</div>`);
+  if (m.location) parts.push(`<div class="tiny">📍 ${escapeHtml(m.location)}</div>`);
+
+  const media = Array.isArray(m.media) ? m.media : [];
+  const audioTrack = media.find(x => x.type === "audio");
+  const slides = media.filter(x => x.type !== "audio"); // image/video
+
+  if (slides.length) {
+    parts.push(`
+      <div class="storybox">
+        <div class="story-progress">
+          ${slides.map(() => `<span></span>`).join("")}
+          ${auth.currentUser ? `<button class="story-add" type="button" title="Нэмэх">+</button>` : ``}
+        </div>
+
+        <div class="story-stage">
+          ${slides.map((x, i) => {
+            if (x.type === "video") {
+              return `<video class="story-slide${i===0?' active':''}"
+                        src="${x.url}"
+                        playsinline
+                        controls
+                        preload="metadata"
+                      ></video>`;
+            }
+            return `<img class="story-slide${i===0 ? " active" : ""}" src="${x.url}" alt="">`;
+          }).join("")}
+        </div>
+
+        <div class="story-nav left" aria-label="Prev"></div>
+        <div class="story-nav right" aria-label="Next"></div>
+
+        ${audioTrack ? `
+          <div class="bg-audio">
+            <button class="bg-audio-btn" type="button" title="Audio">🎵</button>
+            <audio class="bg-audio-el" src="${audioTrack.url}" preload="metadata" controls></audio>
+          </div>
+        ` : ``}
+      </div>
+    `);
+  }
+
+  if (m.text) parts.push(`<div class="m-text" style="-webkit-line-clamp:unset">${escapeHtml(m.text)}</div>`);
+
+  if (detailBody) detailBody.innerHTML = parts.join("");
+  showDetail();
+
+  const box = detailBody?.querySelector(".storybox");
+  if (box) initStorySlider(box);
+
+  // ✅ login үед л addMoreWrap харагдана (onAuthStateChanged бас update хийнэ)
+  if (addMoreWrap) addMoreWrap.style.display = auth.currentUser ? "block" : "none";
+  if (deleteInDetailBtn) deleteInDetailBtn.style.display = auth.currentUser ? "inline-flex" : "none";
+}
+
+// ✅ + дээр дарахад file picker нээх (энэ аль хэдийн байгаа)
+detailBody?.addEventListener("click", (e) => {
+  if (e.target.closest(".story-add") || e.target.closest(".story-stage")) {
+    // зөвхөн login үед
+    if (auth.currentUser) addMoreInput?.click();
+  }
+});
+
+
+// ✅ Файл сонгогдмогц шууд upload + append хийх (FB story шиг)
+addMoreInput?.addEventListener("change", async () => {
+  if (!auth.currentUser) return alert("Нэвтэрч байж нэмнэ.");
+  if (!currentDetailId) return alert("Аль дурсамж дээр нэмэхээ олсонгүй.");
+
+  const files = Array.from(addMoreInput.files || []);
+  if (!files.length) return;
+
+  if (addMoreStatus) addMoreStatus.textContent = "Upload хийж байна...";
+
+  try {
+    const newItems = await uploadFilesToMedia(files);
+
+    await updateDoc(doc(db, "memories", currentDetailId), {
+      media: arrayUnion(...newItems)
+    });
+
+    if (addMoreStatus) addMoreStatus.textContent = "Нэмэгдлээ ✅";
+    addMoreInput.value = ""; // reset
+  } catch (err) {
+    console.error(err);
+    if (addMoreStatus) addMoreStatus.textContent = "Алдаа гарлаа ❌";
+    alert("Нэмэх үед алдаа гарлаа.");
+  }
+});
+
+
 /** ---- Submit: Add memory ---- */
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!auth.currentUser) return alert("Нэвтэрч байж нэмнэ.");
-
   if (statusEl) statusEl.textContent = "Нэмэж байна…";
 
   const title = document.getElementById("title")?.value.trim();
@@ -195,59 +300,59 @@ form?.addEventListener("submit", async (e) => {
   const date = document.getElementById("date")?.value || new Date().toISOString().slice(0, 10);
   const location = document.getElementById("location")?.value.trim();
   const mood = document.getElementById("mood")?.value || "💗";
-  const musicLink = document.getElementById("music")?.value.trim();
-  const videoLink = document.getElementById("video")?.value.trim();
-  const file = document.getElementById("photo")?.files?.[0];
 
-  let imageUrl = "";
-  if (file) {
-    try {
-      const fileRef = ref(storage, `memories/${Date.now()}-${safeName(file.name)}`);
-      await uploadBytes(fileRef, file);
-      imageUrl = await getDownloadURL(fileRef);
-    } catch (err) {
-      console.error(err);
-      alert("Зураг upload хийхэд алдаа гарлаа.");
+  const files = Array.from(document.getElementById("media")?.files || []);
+  let media = [];
+
+  try {
+    if (files.length) {
+      media = await uploadFilesToMedia(files);
     }
-  }
 
-  await addDoc(collection(db, "memories"), {
-    title: title || "",
-    text: text || "",
-    eventDate: date,
-    location: location || "",
-    mood,
-    imageUrl: imageUrl || "",
-    musicLink: musicLink || "",
-    videoLink: videoLink || "",
-    createdAt: serverTimestamp(),
-    authorUid: auth.currentUser.uid,
-    authorName: auth.currentUser.displayName || ""
-  });
+    await addDoc(collection(db, "memories"), {
+      title: title || "",
+      text: text || "",
+      eventDate: date,
+      location: location || "",
+      mood,
+      media,
+      createdAt: serverTimestamp(),
+      authorUid: auth.currentUser.uid,
+      authorName: auth.currentUser.displayName || ""
+    });
 
-  form.reset();
-  if (statusEl) statusEl.textContent = "Нэмэгдлээ ✅";
-  setTimeout(() => {
+    form.reset();
+    if (statusEl) statusEl.textContent = "Нэмэгдлээ ✅";
+    setTimeout(() => {
+      if (statusEl) statusEl.textContent = "";
+      hideAddModal();
+    }, 700);
+  } catch (err) {
+    console.error(err);
+    alert("Нэмэх үед алдаа гарлаа.");
     if (statusEl) statusEl.textContent = "";
-    hideAddModal();
-  }, 700);
+  }
 });
 
 /** ---- Render list card ---- */
 function renderMemory(m) {
   const dateLine = `${m.mood || "💗"} ${m.eventDate || ""}`;
   const locLine = m.location ? `📍 ${m.location}` : "";
+  const first = (m.media && m.media.length) ? m.media[0] : null;
 
   return `
     <article class="memory" data-id="${m.id}">
-      ${m.imageUrl ? `
+      ${first ? `
         <div class="m-hero">
-          <img src="${m.imageUrl}" alt="">
+          ${first.type === "video"
+            ? `<video src="${first.url}" muted playsinline></video>`
+            : first.type === "image"
+              ? `<img src="${first.url}" alt="">`
+              : `<div class="m-hero fake"><div class="badge">🎵 AUDIO</div></div>`
+          }
         </div>
       ` : `
-        <div class="m-hero fake">
-          <div class="badge">MEMORY</div>
-        </div>
+        <div class="m-hero fake"><div class="badge">MEMORY</div></div>
       `}
 
       <div class="m-body">
@@ -261,31 +366,6 @@ function renderMemory(m) {
 }
 
 /** ---- Helpers ---- */
-function renderMusic(url) {
-  if (url.includes("spotify.com")) {
-    const embed = url.replace("open.spotify.com/", "open.spotify.com/embed/");
-    return `<iframe style="margin-top:10px;border-radius:12px" src="${embed}"
-      width="100%" height="80" frameborder="0"
-      allow="autoplay; clipboard-write; encrypted-media;"></iframe>`;
-  }
-  return `<div class="tiny" style="margin-top:10px;">🎵 ${linkify(url)}</div>`;
-}
-
-function renderVideo(url) {
-  let src = url;
-  try {
-    if (url.includes("youtube.com/watch")) {
-      const id = new URL(url).searchParams.get("v");
-      if (id) src = `https://www.youtube.com/embed/${id}`;
-    } else if (url.includes("youtu.be/")) {
-      const id = url.split("youtu.be/")[1]?.split("?")[0];
-      if (id) src = `https://www.youtube.com/embed/${id}`;
-    }
-  } catch (_) {}
-  return `<iframe style="margin-top:10px;border-radius:12px" src="${src}"
-    width="100%" height="220" frameborder="0" allowfullscreen></iframe>`;
-}
-
 function escapeHtml(s) {
   return String(s)
     .replaceAll("&", "&amp;")
@@ -294,14 +374,8 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
 function safeName(name) {
   return String(name).replaceAll(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-function linkify(url) {
-  const safe = escapeHtml(url);
-  return `<a class="tiny" href="${safe}" target="_blank" rel="noreferrer" style="color:rgba(255,255,255,.8)">${safe}</a>`;
 }
 
 /** ---- Misc ---- */
@@ -323,3 +397,90 @@ document.getElementById("copyLinkBtn")?.addEventListener("click", async () => {
     alert("Хуулах боломжгүй байна. Гар аргаар хуулна уу.");
   }
 });
+
+/** ---- Story Slider (box param-тай) ---- */
+function initStorySlider(box) {
+  const slides = Array.from(box.querySelectorAll(".story-slide"));
+  const bars = Array.from(box.querySelectorAll(".story-progress span"));
+  const left = box.querySelector(".story-nav.left");
+  const right = box.querySelector(".story-nav.right");
+  const bgAudio = box.querySelector(".bg-audio-el");
+
+  if (!slides.length) return;
+  let i = 0;
+
+  function stopAllVideos() {
+    slides.forEach((s) => {
+      if (s.tagName === "VIDEO") {
+        s.pause();
+        s.currentTime = 0;
+      }
+    });
+  }
+
+  function render() {
+    slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+    bars.forEach((b, idx) => b.classList.toggle("active", idx === i));
+
+    const active = slides[i];
+
+    if (active && active.tagName === "VIDEO") {
+      if (bgAudio) bgAudio.pause();
+      stopAllVideos();
+      active.play().catch(() => {});
+      return;
+    }
+
+    stopAllVideos();
+    if (bgAudio) {
+      bgAudio.play().catch(() => {});
+    }
+  }
+
+  function goNext() {
+    i = (i + 1) % slides.length;
+    render();
+  }
+  function goPrev() {
+    i = (i - 1 + slides.length) % slides.length;
+    render();
+  }
+
+  right && (right.onclick = goNext);
+  left && (left.onclick = goPrev);
+
+  // Mobile swipe
+  let startX = null;
+  box.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) startX = e.touches[0].clientX;
+  });
+  box.addEventListener("touchend", (e) => {
+    if (startX !== null && e.changedTouches.length === 1) {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx > 40) goPrev();
+      else if (dx < -40) goNext();
+      startX = null;
+    }
+  });
+
+  // 🎵 жижиг товч дарахад controls show/hide
+  const btn = box.querySelector(".bg-audio-btn");
+  const wrap = box.querySelector(".bg-audio");
+  if (btn && wrap) {
+    btn.onclick = () => wrap.classList.toggle("open");
+  }
+
+  render();
+}
+addMoreBtn?.addEventListener("click", () => {
+  addMoreMedia?.click();
+});
+window.addEventListener("load", () => {
+  const intro = document.getElementById("intro");
+  if (!intro) return;
+
+  setTimeout(() => {
+    intro.remove();
+  }, 3800); // animation дууссаны дараа
+});
+
